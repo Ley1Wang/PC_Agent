@@ -15,6 +15,10 @@ await new Promise((resolve) => app.server.listen(0, "127.0.0.1", resolve));
 const origin = `http://127.0.0.1:${app.server.address().port}`;
 const browser = await chromium.launch({ channel: "msedge", headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, permissions: ["clipboard-read", "clipboard-write"] });
+await context.addInitScript(() => {
+  let text = "";
+  Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (value) => { text = value; }, readText: async () => text } });
+});
 const page = await context.newPage(); const errors = [], remote = [];
 page.on("pageerror", (error) => errors.push(error.message));
 page.on("request", (request) => { if (!request.url().startsWith(origin) && !request.url().startsWith("blob:")) remote.push(request.url()); });

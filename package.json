@@ -3,12 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "desktop/main.mjs",
+  "author": "PC Agent",
   "description": "Local-only desktop assistant foundation: Ollama, SQLite and game mode.",
   "engines": { "node": ">=24" },
   "scripts": {
     "start": "node scripts/start.mjs",
     "test": "node --test tests/app.test.mjs",
     "preview": "node scripts/preview.mjs",
-    "test:ui": "node tests/ui.mjs"
+    "test:ui": "node tests/ui.mjs",
+    "test:desktop": "node tests/desktop.mjs",
+    "desktop": "electron .",
+    "build:icons": "node scripts/make-icon.mjs",
+    "build:win": "npm run build:icons && electron-builder --config electron-builder.cjs --win portable nsis --x64"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
   }
 }

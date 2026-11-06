@@ -2,6 +2,7 @@ import http from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { timingSafeEqual } from "node:crypto";
 import { createStore } from "./store.mjs";
 import { createOllama } from "./ollama.mjs";
 
@@ -26,7 +27,8 @@ async function readJson(req) {
   return body;
 }
 
-export function createApplication({ dataDir = path.join(ROOT, "data"), ollamaUrl, preview = false } = {}) {
+export function createApplication({ dataDir = path.join(ROOT, "data"), ollamaUrl, preview = false, desktopToken = null } = {}) {
+  if (desktopToken !== null && (typeof desktopToken !== "string" || !/^[a-f0-9]{64}$/.test(desktopToken))) throw new Error("Invalid desktop session token");
   const store = createStore(dataDir); const ollama = createOllama(ollamaUrl);
   let mode = store.setting("mode", "normal");
   if (!["normal", "game"].includes(mode)) mode = "normal";
@@ -134,6 +136,10 @@ export function createApplication({ dataDir = path.join(ROOT, "data"), ollamaUrl
       if (!["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname) || Number(origin.port || 80) !== address.port || !req.url.startsWith("/") || req.url.startsWith("//")) throw fail(403, "仅允许本机访问。");
       if (req.headers["sec-fetch-site"] === "cross-site") throw fail(403, "不允许其他网站访问本地服务。");
       if (req.headers.origin && req.headers.origin !== origin.origin) throw fail(403, "不允许跨来源访问。");
+      if (desktopToken) {
+        const cookie = (req.headers.cookie || "").split(";").map((entry) => entry.trim()).find((entry) => entry.startsWith("pc_agent_session="))?.slice("pc_agent_session=".length) || "";
+        if (!/^[a-f0-9]{64}$/.test(cookie) || !timingSafeEqual(Buffer.from(cookie), Buffer.from(desktopToken))) throw fail(403, "请从 PC Agent 桌面窗口访问。");
+      }
       const url = new URL(req.url, origin);
       if (["POST", "PATCH"].includes(req.method) && !/^application\/json(?:;|$)/i.test(req.headers["content-type"] || "")) throw fail(415, "请使用 application/json。");
       if (req.method === "GET" && url.pathname === "/api/status") return send(res, 200, await status());

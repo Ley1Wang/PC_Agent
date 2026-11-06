@@ -214,7 +214,7 @@ let searchTimer; $("search").addEventListener("input", () => { clearTimeout(sear
 function saveDraft() { storage.set("pc-agent-draft", $("prompt").value); }
 function resizePrompt() { $("prompt").style.height = "auto"; $("prompt").style.height = `${Math.min($("prompt").scrollHeight, 170)}px`; }
 async function copy(text, button) {
-  try { await navigator.clipboard.writeText(text); const label = button.textContent; button.textContent = "已复制"; setTimeout(() => { button.textContent = label; }, 1200); }
+  try { if (window.pcAgentDesktop?.copyText) await window.pcAgentDesktop.copyText(text); else await navigator.clipboard.writeText(text); const label = button.textContent; button.textContent = "已复制"; setTimeout(() => { button.textContent = label; }, 1200); }
   catch { notice("浏览器不允许复制，请手动选中文字。", true); }
 }
 $("copy-command").addEventListener("click", (event) => copy("ollama pull deepseek-r1:8b", event.currentTarget));

@@ -8,6 +8,20 @@ import { createOllama } from "../backend/ollama.mjs";
 import { createMock } from "./mock.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+test("Desktop sessions reject access without the private HTTP-only cookie", async () => {
+  const parent = path.join(root, ".local", "tests"); await mkdir(parent, { recursive: true });
+  const dataDir = await mkdtemp(path.join(parent, "desktop-auth-"));
+  const token = "a".repeat(64); const app = createApplication({ dataDir, desktopToken: token });
+  await new Promise((resolve) => app.server.listen(0, "127.0.0.1", resolve));
+  const origin = `http://127.0.0.1:${app.server.address().port}`;
+  try {
+    for (const cookie of ["", "pc_agent_session=" + "b".repeat(64), "pc_agent_session=" + "a".repeat(65)]) {
+      assert.equal((await fetch(origin + "/api/conversations", { headers: { cookie } })).status, 403);
+    }
+    assert.equal((await fetch(origin + "/api/conversations", { headers: { cookie: `pc_agent_session=${token}` } })).status, 200);
+    assert.equal((await fetch(origin, { headers: { cookie: `pc_agent_session=${token}` } })).status, 200);
+  } finally { await app.close(); }
+});
 test("PC Agent: isolated persistence, local streams, resource release and game-mode gate", async () => {
   const parent = path.join(root, ".local", "tests"); await mkdir(parent, { recursive: true });
   const dataDir = await mkdtemp(path.join(parent, "run-"));
