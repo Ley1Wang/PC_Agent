@@ -1,0 +1,14 @@
+{
+  "name": "pc-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-only desktop assistant foundation: Ollama, SQLite and game mode.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node scripts/start.mjs",
+    "test": "node --test tests/app.test.mjs",
+    "preview": "node scripts/preview.mjs",
+    "test:ui": "node tests/ui.mjs"
+  }
+}
