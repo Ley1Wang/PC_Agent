@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-// A single text-only operation. No file, command, clipboard-read or generic IPC API.
+// Narrow clipboard and companion operations only; no file or general IPC access.
 contextBridge.exposeInMainWorld("pcAgentDesktop", Object.freeze({
-  copyText: (text) => ipcRenderer.invoke("pc-agent:copy-text", text)
+  copyText: (text) => ipcRenderer.invoke("pc-agent:copy-text", text),
+  openCompanion: () => ipcRenderer.invoke("pc-agent:companion-open"),
+  setCompanionPhase: (phase) => ipcRenderer.send("pc-agent:companion-phase", phase)
 }));

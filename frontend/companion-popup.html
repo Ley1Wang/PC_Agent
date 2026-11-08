@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>鲸鱼娘 · PC Agent</title>
+  <link rel="stylesheet" href="/companion-portrait.css">
+  <link rel="stylesheet" href="/companion-popup.css">
+</head>
+<body>
+  <main class="widget" aria-label="DeepSeek 鲸鱼娘桌面弹窗">
+    <header class="widget-bar" title="拖动标题可移动窗口">
+      <h1>鲸鱼娘</h1>
+      <button id="pin" type="button" aria-pressed="false" title="切换窗口置顶">置顶</button>
+      <button id="close" type="button" aria-label="关闭人物弹窗" title="关闭（Esc）">×</button>
+    </header>
+    <div class="companion-stage widget-portrait" id="companion" data-state="idle" aria-hidden="true">
+      <img class="companion-portrait portrait-delighted" src="/assets/whale/delighted-cutout.png" alt="">
+      <img class="companion-portrait portrait-determined" src="/assets/whale/determined-cutout.png" alt="">
+      <img class="companion-portrait portrait-sleepy" src="/assets/whale/sleepy-cutout.png" alt="">
+    </div>
+    <footer class="widget-footer"><p role="status"><span id="companion-state">安静待命</span></p><small title="上善无形、ZipZipPipe、Small-tailqwq · CC BY-NC-SA 4.0">DeepSeek 同人形象</small></footer>
+  </main>
+  <script type="module" src="/companion-popup.js"></script>
+</body>
+</html>

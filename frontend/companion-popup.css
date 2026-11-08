@@ -1,0 +1,19 @@
+:root{color-scheme:light;color:#293d53;font-family:"Segoe UI","Microsoft YaHei",sans-serif;font-size:12px}
+*{box-sizing:border-box}
+body{margin:0;padding:6px;overflow:hidden;user-select:none}
+.widget{height:calc(100dvh - 12px);display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;border:1px solid #cfdde8;border-radius:16px;background:radial-gradient(ellipse at 50% 40%,#f9fcff 20%,#eaf1f8 100%);box-shadow:0 2px 5px #1b364924}
+.widget-bar,.widget-portrait{-webkit-app-region:drag;app-region:drag}
+.widget-bar{display:flex;align-items:center;gap:5px;padding:7px 8px 4px 11px}
+h1{flex:1;font-size:12px;font-weight:650;margin:0}
+button{-webkit-app-region:no-drag;app-region:no-drag;height:24px;border:1px solid transparent;border-radius:6px;padding:0 6px;background:none;color:#496075;font:inherit;cursor:pointer}
+button:hover:not(:disabled){background:#dae6f1}
+button:focus-visible{outline:2px solid #547cab;outline-offset:1px}
+button[aria-pressed=true]{border-color:#c4d8e9;background:#e2edf7;color:#254d77}
+button:disabled{opacity:.55;cursor:default}
+#close{width:25px;padding:0;font-size:19px;line-height:1}
+.widget-portrait{display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;padding:1px 9px}
+.widget-footer{text-align:center;padding:4px 6px 9px}
+.widget-footer p{margin:0 0 3px;font-weight:600}
+.widget-footer p::before{content:"";display:inline-block;width:6px;height:6px;margin-right:6px;vertical-align:2px;border-radius:50%;background:#6686a5}
+.widget:has([data-state=game]) .widget-footer p::before,.widget:has([data-state=offline]) .widget-footer p::before{background:#929ba6}
+.widget-footer small{color:#657589;font-size:9px}

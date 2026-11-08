@@ -8,7 +8,7 @@ import { createOllama } from "./ollama.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const WEB = path.join(ROOT, "frontend");
-const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml" };
+const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png" };
 const MAX_TEXT = 16000;
 const fail = (status, message) => Object.assign(new Error(message), { status });
 const friendly = (error) => error.name === "TimeoutError" ? "等待模型超时，请尝试较短的问题或检查内存。" : error.message === "fetch failed" ? "无法连接 Ollama。请先在电脑上打开 Ollama。" : String(error.message).slice(0, 250);
@@ -27,7 +27,7 @@ async function readJson(req) {
   return body;
 }
 
-export function createApplication({ dataDir = path.join(ROOT, "data"), ollamaUrl, preview = false, desktopToken = null } = {}) {
+export function createApplication({ dataDir = path.join(ROOT, "data"), ollamaUrl, preview = false, desktopToken = null, engine = null } = {}) {
   if (desktopToken !== null && (typeof desktopToken !== "string" || !/^[a-f0-9]{64}$/.test(desktopToken))) throw new Error("Invalid desktop session token");
   const store = createStore(dataDir); const ollama = createOllama(ollamaUrl);
   let mode = store.setting("mode", "normal");
@@ -36,7 +36,7 @@ export function createApplication({ dataDir = path.join(ROOT, "data"), ollamaUrl
   let releaseState = { state: "not-requested", released: [], remaining: [], message: "尚未检查释放状态。" };
 
   async function status() {
-    const base = { mode, preview, busy: Boolean(job), releasing: Boolean(resourceOperation), release: releaseState, contextTokens: 4096, keepAliveSeconds: 60, preferredModel: "deepseek-r1:8b" };
+    const base = { mode, preview, busy: Boolean(job), releasing: Boolean(resourceOperation), release: releaseState, contextTokens: 4096, keepAliveSeconds: 60, preferredModel: "deepseek-r1:8b", engine: engine?.getStatus() || { state: "manual", managed: false, message: "网页版请手动打开 Ollama；桌面 EXE 支持自动后台启动。" } };
     try { return { ...base, online: true, ...await ollama.inspect() }; }
     catch (error) { return { ...base, online: false, models: [], running: [], error: friendly(error) }; }
   }
@@ -143,6 +143,12 @@ export function createApplication({ dataDir = path.join(ROOT, "data"), ollamaUrl
       const url = new URL(req.url, origin);
       if (["POST", "PATCH"].includes(req.method) && !/^application\/json(?:;|$)/i.test(req.headers["content-type"] || "")) throw fail(415, "请使用 application/json。");
       if (req.method === "GET" && url.pathname === "/api/status") return send(res, 200, await status());
+      if (req.method === "POST" && url.pathname === "/api/engine/start") {
+        await readJson(req);
+        if (!engine) throw fail(409, "网页版请手动打开 Ollama。");
+        void engine.start();
+        return send(res, 202, { engine: engine.getStatus() });
+      }
       if (req.method === "GET" && url.pathname === "/api/conversations") return send(res, 200, { conversations: store.list((url.searchParams.get("q") || "").slice(0, 200)) });
       const match = url.pathname.match(/^\/api\/conversations\/([a-zA-Z0-9-]+)$/);
       if (match && req.method === "GET") {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f5f5f2"><meta name="description" content="PC Agent：仅连接本机 Ollama 的个人助手，独立聊天记录与手动游戏模式。">
-  <title>PC Agent · 本地助手</title><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
+  <title>PC Agent · 本地助手</title><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/companion-portrait.css"><link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <div id="preview-banner" hidden>测试预览 · 模拟模型回答 · 临时数据库 · 不代表真实模型表现</div>
@@ -32,20 +32,26 @@
       </footer>
     </main>
     <aside class="inspector" aria-label="助手与资源状态">
-      <section class="companion-card"><div class="section-heading"><h2>桌边伙伴</h2><span>01 / 起步版</span></div>
-        <div class="companion-stage" id="companion" data-state="idle" aria-hidden="true"><div class="computer"><div class="computer-screen"><div class="eyes"><i></i><i></i></div><div class="mouth"></div></div><div class="computer-chin"><i></i><span>PC</span></div></div><div class="computer-stand"></div></div>
+      <section class="companion-card"><div class="section-heading"><h2>桌边伙伴</h2><span id="companion-caption">DeepSeek 鲸鱼娘</span><button class="text-button companion-open" id="open-companion" type="button" hidden>人物弹窗 ↗</button></div>
+        <div class="companion-stage" id="companion" data-state="idle" aria-hidden="true">
+          <img class="companion-portrait portrait-delighted" src="/assets/whale/delighted-cutout.png" alt="">
+          <img class="companion-portrait portrait-determined" src="/assets/whale/determined-cutout.png" alt="">
+          <img class="companion-portrait portrait-sleepy" src="/assets/whale/sleepy-cutout.png" alt="">
+        </div>
         <p class="companion-status"><span class="small-dot" id="companion-dot"></span><span id="companion-state">安静待命</span></p><p class="companion-note" id="companion-note">形象只做状态联动，不额外加载 AI 模型。</p>
+        <details class="companion-credit"><summary>同人形象 · 素材署名</summary><p>上善无形（原角色）、ZipZipPipe（重设计）、Small-tailqwq（表情素材）。非官方形象；美术采用 CC BY-NC-SA 4.0。</p></details>
       </section>
       <section class="resource-card"><div class="section-heading"><h2>本机资源</h2><button class="text-button" id="refresh">刷新</button></div>
         <div class="metric-line"><span>Ollama</span><strong id="ollama-state">检查中</strong></div><div class="metric-line"><span>模型显存合计</span><strong id="vram">—</strong></div>
+        <p class="engine-message" id="engine-message" role="status"></p><button class="secondary wide" id="engine-start" hidden>重试后台启动</button>
         <p class="muted resource-help">来自 Ollama 的模型占用，不是整张显卡的总占用。</p><div class="running-list" id="running-list"></div>
         <button id="release" class="secondary wide">释放模型显存</button>
         <button id="game-mode" class="game-button wide">进入游戏模式</button><p class="mode-description" id="mode-description">停止本应用生成，释放 Ollama 已加载模型，并阻止本应用再次加载。</p>
         <p class="resource-message" id="resource-message" role="status"></p>
         <details class="technical-notes"><summary>运行与资源说明</summary><p>每次只运行一个聊天请求，上下文设为 4,096 tokens。回答后驻留 60 秒，再由 Ollama 释放。</p><p>释放不会删除硬盘模型或聊天记录。Ollama 若被其他软件共用，释放也可能影响它们；游戏模式只能阻止本应用加载。</p></details>
       </section>
-      <section class="setup-card" id="setup-card" hidden><h2>准备 DeepSeek</h2><p>先打开 Ollama。需要模型时，在终端运行：</p><code>ollama pull deepseek-r1:8b</code><button class="text-button" id="copy-command">复制下载命令</button><p class="muted">仅提供命令，不会自动下载或加载。首次下载需要联网。</p></section>
-      <div class="next-step"><span class="eyebrow">接下来</span><p>本地语音 · 任务与笔记工具 · 桌面悬浮窗</p><small>尚未接入，这一版先把聊天和资源管理做好。</small></div>
+      <section class="setup-card" id="setup-card" hidden><h2>准备 DeepSeek</h2><p>桌面版会尝试后台启动已安装的 Ollama。需要模型时，在终端运行：</p><code>ollama pull deepseek-r1:8b</code><button class="text-button" id="copy-command">复制下载命令</button><p class="muted">仅提供命令，不会自动下载或加载。首次下载需要联网。</p></section>
+      <div class="next-step"><span class="eyebrow">接下来</span><p>本地语音 · 任务与笔记工具</p><small>尚未接入，这一版先把聊天和资源管理做好。</small></div>
     </aside>
   </div>
   <dialog id="confirm-dialog"><form id="confirm-form"><h2 id="confirm-title">释放模型显存</h2><p id="confirm-description"></p><p class="confirm-warning">会停止本应用正在生成的回答并保留已收到的部分内容。也可能影响使用同一个 Ollama 的其他软件。</p><p class="muted">不会删除模型文件或聊天记录。</p><div class="dialog-actions"><button id="confirm-cancel" type="button" class="secondary">取消</button><button type="submit" class="primary" id="confirm-submit">确认释放</button></div></form></dialog>

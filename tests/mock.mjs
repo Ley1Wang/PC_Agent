@@ -7,6 +7,7 @@ export function createMock() {
   const server = http.createServer(async (req, res) => {
     const json = (data, status = 200) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(data)); };
     if (state.offline) return json({ error: "offline" }, 503);
+    if (req.url === "/api/version") return json({ version: "0.0.0-test" });
     if (req.url === "/api/tags") return json({ models: [
       { name: "deepseek-r1:8b", size: 5200000000, details: { parameter_size: "8B", quantization_level: "Q4_K_M" } },
       { name: "other:small", size: 1800000000, details: { parameter_size: "2B", quantization_level: "Q4_K_M" } },

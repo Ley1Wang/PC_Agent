@@ -6,8 +6,28 @@ import { fileURLToPath } from "node:url";
 import { createApplication } from "../backend/app.mjs";
 import { createOllama } from "../backend/ollama.mjs";
 import { createMock } from "./mock.mjs";
+import { createOllamaService } from "../desktop/ollama-service.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+test("Desktop engine retry endpoint reuses Ollama without loading a model, including game mode", async () => {
+  const parent = path.join(root, ".local", "tests"); await mkdir(parent, { recursive: true });
+  const dataDir = await mkdtemp(path.join(parent, "engine-api-"));
+  const mock = createMock(); await new Promise((resolve) => mock.server.listen(0, "127.0.0.1", resolve));
+  const endpoint = `http://127.0.0.1:${mock.server.address().port}`;
+  const engine = createOllamaService({ endpoint, findExecutable: async () => { throw new Error("Existing service must be reused"); } });
+  const app = createApplication({ dataDir, ollamaUrl: endpoint, engine });
+  await new Promise((resolve) => app.server.listen(0, "127.0.0.1", resolve));
+  const origin = `http://127.0.0.1:${app.server.address().port}`;
+  const post = (route, body) => fetch(origin + route, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  try {
+    assert.equal((await post("/api/engine/start", {})).status, 202); await engine.start();
+    const state = await (await fetch(origin + "/api/status")).json(); assert.equal(state.engine.state, "ready"); assert.equal(state.engine.managed, false);
+    await post("/api/mode", { mode: "game", confirm: true });
+    assert.equal((await post("/api/engine/start", {})).status, 202); await engine.start();
+    assert.equal(mock.state.requests.length, 0);
+    const gaming = await (await fetch(origin + "/api/status")).json(); assert.equal(gaming.mode, "game"); assert.equal(gaming.running.length, 0);
+  } finally { engine.dispose(); await app.close(); mock.server.closeAllConnections(); await new Promise((resolve) => mock.server.close(resolve)); }
+});
 test("Desktop sessions reject access without the private HTTP-only cookie", async () => {
   const parent = path.join(root, ".local", "tests"); await mkdir(parent, { recursive: true });
   const dataDir = await mkdtemp(path.join(parent, "desktop-auth-"));
@@ -42,7 +62,13 @@ test("PC Agent: isolated persistence, local streams, resource release and game-m
   try {
     assert.throws(() => createOllama("https://remote.example"), /本机/);
     assert.throws(() => createOllama("http://127.0.0.1:1234/redirect"), /本机/);
-    for (const route of ["/", "/app.js", "/render.js", "/style.css", "/icon.svg"]) assert.equal((await fetch(base + route)).status, 200);
+    for (const route of ["/", "/app.js", "/render.js", "/style.css", "/icon.svg", "/companion-popup.html", "/companion-popup.js", "/companion-popup.css", "/companion-portrait.css", "/companion-view.js"]) assert.equal((await fetch(base + route)).status, 200);
+    for (const pose of ["delighted", "determined", "sleepy"]) {
+      const image = await fetch(`${base}/assets/whale/${pose}-cutout.png`);
+      assert.equal(image.status, 200);
+      assert.equal(image.headers.get("content-type"), "image/png");
+      assert.equal(Buffer.from(await image.arrayBuffer()).subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+    }
     const headers = (await fetch(base)).headers;
     assert.match(headers.get("content-security-policy"), /connect-src 'self'/);
     assert.match(headers.get("permissions-policy"), /microphone=\(\)/);

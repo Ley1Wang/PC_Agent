@@ -24,10 +24,19 @@ page.on("pageerror", (error) => errors.push(error.message));
 page.on("request", (request) => { if (!request.url().startsWith(origin) && !request.url().startsWith("blob:")) remote.push(request.url()); });
 const send = async (message) => { await page.locator("#prompt").fill(message); await page.locator("#send").click(); await page.locator("#stop").waitFor({ state: "hidden" }); };
 const ready = async () => { await page.waitForFunction(() => document.getElementById("ollama-state").textContent === "在线"); };
+const portrait = async (phase, pose) => {
+  const active = page.locator(`#companion[data-state="${phase}"] .portrait-${pose}`);
+  await active.waitFor({ state: "visible" });
+  await active.evaluate((image) => image.decode());
+  assert.equal(await page.locator("#companion img:visible").count(), 1);
+};
 try {
   await page.goto(origin); await ready();
   assert.equal(await page.locator("#model").inputValue(), "deepseek-r1:8b");
   assert.equal(await page.locator("#preview-banner").isVisible(), true);
+  assert.equal(await page.locator("#open-companion").isVisible(), false, "The native popup is desktop-only");
+  await portrait("idle", "delighted");
+  await page.locator(".companion-card").screenshot({ path: path.join(qa, "whale-companion.png") });
   await page.screenshot({ path: path.join(qa, "desktop-idle.png") });
   await send("unsafe");
   assert.equal(await page.locator(".message-body img,.message-body script").count(), 0);
@@ -48,8 +57,14 @@ try {
   await page.locator("#messages").evaluate((element) => { element.scrollTop = 0; });
   await page.screenshot({ path: path.join(qa, "desktop-chat.png") });
 
-  await page.locator("#new-chat").click(); await page.locator("#prompt").fill("slow"); await page.locator("#send").click();
+  const loadingGate = Promise.withResolvers();
+  await page.route("**/api/chat", async (route) => { await loadingGate.promise; await route.continue(); }, { times: 1 });
+  try {
+    await page.locator("#new-chat").click(); await page.locator("#prompt").fill("slow"); await page.locator("#send").click();
+    await portrait("loading", "determined");
+  } finally { loadingGate.resolve(); }
   await page.waitForFunction(() => document.querySelector(".message.assistant .message-body")?.textContent.includes("部分回答"));
+  await portrait("writing", "delighted");
   await page.locator("#game-mode").click();
   assert.equal(await page.locator("#confirm-dialog").isVisible(), true);
   assert.match(await page.locator("#confirm-description").textContent(), /deepseek-r1:8b/);
@@ -58,6 +73,7 @@ try {
   await page.locator("#stop").waitFor({ state: "hidden" });
   assert.match(await page.locator(".message-meta").last().textContent(), /已停止/);
   assert.equal(await page.locator("#vram").textContent(), "0.0 GiB");
+  await portrait("game", "sleepy");
   await page.locator("#prompt").fill("游戏期间保留的草稿"); assert.equal(await page.locator("#send").isDisabled(), true);
   await page.screenshot({ path: path.join(qa, "desktop-game.png") });
   const second = await context.newPage(); await second.goto(origin);

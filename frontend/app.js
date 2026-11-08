@@ -1,4 +1,5 @@
 import { renderAnswer } from "./render.js";
+import { companionStates } from "./companion-view.js";
 const $ = (id) => document.getElementById(id);
 const state = { status: null, id: null, model: null, title: "新的开始", controller: null, loading: false, resourceBusy: false, history: [], historyVersion: 0, refreshing: false };
 const storage = { get(key) { try { return localStorage.getItem(key); } catch { return null; } }, set(key, value) { try { localStorage.setItem(key, value); } catch { /* Private browsing may block drafts. */ } } };
@@ -13,14 +14,13 @@ async function request(url, options = {}) {
 const post = (url, body) => request(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 function notice(message = "", error = false) { $("notice").hidden = !message; $("notice").textContent = message; $("notice").classList.toggle("error", error); }
 
+let companionPhase;
 function companion(phase) {
-  let name = "安静待命", note = "形象只做状态联动，不额外加载 AI 模型。";
-  if (phase === "game") { name = "游戏模式 · 休息中"; note = "本应用不会加载模型。其他软件的 Ollama 请求不受此开关控制。"; }
-  if (phase === "offline") { name = "等待 Ollama"; note = "可以先写草稿、查看旧记录。打开 Ollama 后再发送。"; }
-  if (phase === "loading") { name = "正在加载本地模型"; note = "首次回答可能需要等待，可随时停止。"; }
-  if (phase === "thinking") { name = "正在思考"; note = "只显示状态，不展示或保存模型的独立思考字段。"; }
-  if (phase === "writing") { name = "正在回答"; note = "文字流式返回中，尚未接入语音朗读。"; }
+  if (companionPhase === phase) return;
+  companionPhase = phase;
+  const [name, note] = companionStates[phase];
   $("companion").dataset.state = phase; $("companion-state").textContent = name; $("companion-note").textContent = note;
+  window.pcAgentDesktop?.setCompanionPhase?.(phase);
 }
 
 function controls() {
@@ -42,7 +42,11 @@ function controls() {
 function applyStatus(status) {
   state.status = status;
   $("preview-banner").hidden = !status.preview; document.body.classList.toggle("preview", status.preview);
-  $("ollama-state").textContent = status.online ? "在线" : "未连接";
+  const engineStarting = ["checking", "starting"].includes(status.engine?.state);
+  $("ollama-state").textContent = status.online ? "在线" : engineStarting ? "正在启动" : "未连接";
+  $("engine-message").textContent = !status.online && status.engine?.state === "ready" ? "Ollama 当前未连接，可以点击「重试后台启动」。" : status.online && ["missing", "failed"].includes(status.engine?.state) ? "已连接本机 Ollama，可能由其他程序启动。" : status.engine?.message || "";
+  $("engine-start").hidden = status.online || !status.engine || status.engine.state === "manual";
+  $("engine-start").disabled = engineStarting;
   const knownVram = status.running.every((model) => model.vram != null);
   $("vram").textContent = status.online ? knownVram ? bytes(status.running.reduce((total, model) => total + model.vram, 0)) : "未知" : "—";
   $("running-list").innerHTML = status.online ? status.running.length ? status.running.map((model) => `<div class="running-model"><strong>${escapeHtml(model.name)}</strong><span>模型显存 ${escapeHtml(bytes(model.vram))}</span></div>`).join("") : '<p class="muted">Ollama 当前没有已加载模型。</p>' : `<p class="muted">${escapeHtml(status.error || "请打开 Ollama。")}</p>`;
@@ -59,7 +63,7 @@ function applyStatus(status) {
   let resourceMessage = status.release.state === "not-requested" ? "" : status.release.message;
   if (gaming && status.online && status.running.length && !status.releasing) resourceMessage = "游戏模式已开启，但仍有模型加载。可能由其他软件加载，请检查后再次释放。";
   $("resource-message").textContent = resourceMessage; $("resource-message").classList.toggle("error", ["unknown", "incomplete"].includes(status.release.state) || gaming && status.running.length > 0);
-  if (!state.controller) companion(gaming ? "game" : status.busy ? "thinking" : status.online ? "idle" : "offline");
+  if (!state.controller) companion(gaming ? "game" : status.busy ? "thinking" : status.online ? "idle" : engineStarting ? "service" : "offline");
   controls();
 }
 
@@ -210,6 +214,19 @@ $("stop").addEventListener("click", async () => { try { await post("/api/stop", 
 $("new-chat").addEventListener("click", () => { newConversation(); drawer(false); });
 $("model").addEventListener("change", () => { storage.set("pc-agent-model", $("model").value); if (state.id) { newConversation(); notice("已新建对话，原模型的记录仍然保留。"); } controls(); });
 $("refresh").addEventListener("click", refreshStatus);
+if (window.pcAgentDesktop?.openCompanion) {
+  $("companion-caption").hidden = true;
+  $("open-companion").hidden = false;
+  $("open-companion").addEventListener("click", async () => {
+    try { await window.pcAgentDesktop.openCompanion(); }
+    catch { notice("人物弹窗没有打开，请重试。", true); }
+  });
+}
+$("engine-start").addEventListener("click", async () => {
+  $("engine-start").disabled = true;
+  try { await post("/api/engine/start", {}); notice("正在检查并尝试后台启动 Ollama，不会下载或加载模型。"); await refreshStatus(); }
+  catch (error) { notice(error.message, true); $("engine-start").disabled = false; }
+});
 let searchTimer; $("search").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(refreshHistory, 180); });
 function saveDraft() { storage.set("pc-agent-draft", $("prompt").value); }
 function resizePrompt() { $("prompt").style.height = "auto"; $("prompt").style.height = `${Math.min($("prompt").scrollHeight, 170)}px`; }
